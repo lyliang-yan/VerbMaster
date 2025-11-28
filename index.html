@@ -1,703 +1,682 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Volume2, BookOpen, Edit3, ChevronRight, ChevronLeft, Search, Check, X, ArrowRight, Zap, MousePointerClick, GraduationCap } from 'lucide-react';
-
-const PrimaryVerbsApp = () => {
-  const [mode, setMode] = useState('learn'); // 'learn' | 'spell'
-  const [category, setCategory] = useState('All');
-  const [currentVerbIndex, setCurrentVerbIndex] = useState(0);
-  const [selectedVoice, setSelectedVoice] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // New State for Dynamic Examples
-  const [activeTense, setActiveTense] = useState('past'); // 'base', 's', 'ing', 'past', 'pp'
-  
-  // Spelling State
-  const [userSpelling, setUserSpelling] = useState('');
-  const [spellingFeedback, setSpellingFeedback] = useState(null);
-  const [hintLevel, setHintLevel] = useState(0);
-
-  // --- COMPREHENSIVE DATASET ---
-  // Helper to create regular verb objects quickly
-  const reg = (id, cat, base, zh, type = 'normal') => {
-    let s, ing, past, pp;
-    if (type === 'normal') {
-        s = base + 's'; ing = base + 'ing'; past = base + 'ed'; pp = base + 'ed';
-    } else if (type === 'e') { // dance -> dances, dancing, danced
-        s = base + 's'; ing = base.slice(0, -1) + 'ing'; past = base + 'd'; pp = base + 'd';
-    } else if (type === 'y') { // study -> studies, studying, studied
-        s = base.slice(0, -1) + 'ies'; ing = base + 'ing'; past = base.slice(0, -1) + 'ied'; pp = base.slice(0, -1) + 'ied';
-    } else if (type === 'double') { // stop -> stops, stopping, stopped
-        s = base + 's'; ing = base + base.slice(-1) + 'ing'; past = base + base.slice(-1) + 'ed'; pp = base + base.slice(-1) + 'ed';
-    }
-    return { id, cat, base, s, ing, past, pp, zh };
-  };
-
-  // Helper for irregulars
-  const irr = (id, cat, base, zh, s, ing, past, pp) => ({ id, cat, base, zh, s, ing, past, pp });
-
-  const verbsData = useMemo(() => [
-    // --- 🏃 Action (Daily Life) ---
-    irr('run', 'Action', 'run', '跑', 'runs', 'running', 'ran', 'run'),
-    irr('jump', 'Action', 'jump', '跳', 'jumps', 'jumping', 'jumped', 'jumped'),
-    irr('swim', 'Action', 'swim', '游泳', 'swims', 'swimming', 'swam', 'swum'),
-    reg('walk', 'Action', 'walk', '走路'),
-    irr('sit', 'Action', 'sit', '坐', 'sits', 'sitting', 'sat', 'sat'),
-    irr('stand', 'Action', 'stand', '站立', 'stands', 'standing', 'stood', 'stood'),
-    irr('sleep', 'Action', 'sleep', '睡覺', 'sleeps', 'sleeping', 'slept', 'slept'),
-    irr('eat', 'Action', 'eat', '吃', 'eats', 'eating', 'ate', 'eaten'),
-    irr('drink', 'Action', 'drink', '喝', 'drinks', 'drinking', 'drank', 'drunk'),
-    { id: 'brush', cat: 'Action', base: 'brush', s: 'brushes', ing: 'brushing', past: 'brushed', pp: 'brushed', zh: '刷' },
-    { id: 'wash', cat: 'Action', base: 'wash', s: 'washes', ing: 'washing', past: 'washed', pp: 'washed', zh: '洗' },
-    reg('clean', 'Action', 'clean', '清潔'),
-    reg('comb', 'Action', 'comb', '梳(頭)'),
-    reg('dance', 'Action', 'dance', '跳舞', 'e'),
-    reg('help', 'Action', 'help', '幫忙'),
-    reg('kick', 'Action', 'kick', '踢'),
-    reg('laugh', 'Action', 'laugh', '笑'),
-    reg('cry', 'Action', 'cry', '哭', 'y'),
-    reg('play', 'Action', 'play', '玩'),
-    reg('wait', 'Action', 'wait', '等待'),
-    { id: 'watch', cat: 'Action', base: 'watch', s: 'watches', ing: 'watching', past: 'watched', pp: 'watched', zh: '觀看' },
-    irr('wear', 'Action', 'wear', '穿著', 'wears', 'wearing', 'wore', 'worn'),
-    reg('climb', 'Action', 'climb', '攀爬'),
-    reg('talk', 'Action', 'talk', '說話'),
-    reg('pack', 'Action', 'pack', '收拾'),
-    reg('hop', 'Action', 'hop', '單腳跳', 'double'),
-    reg('skip', 'Action', 'skip', '跳繩', 'double'),
-    reg('chew', 'Action', 'chew', '咀嚼'),
-    reg('clap', 'Action', 'clap', '拍手', 'double'),
-    reg('nod', 'Action', 'nod', '點頭', 'double'),
-    reg('wave', 'Action', 'wave', '揮手', 'e'),
-    reg('yawn', 'Action', 'yawn', '打呵欠'),
-
-    // --- 🍳 Cooking & Household ---
-    reg('cook', 'Cooking', 'cook', '烹飪'),
-    reg('boil', 'Cooking', 'boil', '煮沸'),
-    reg('fry', 'Cooking', 'fry', '煎/炒', 'y'),
-    reg('chop', 'Cooking', 'chop', '砍/剁', 'double'),
-    reg('steam', 'Cooking', 'steam', '蒸'),
-    { id: 'mix', cat: 'Cooking', base: 'mix', s: 'mixes', ing: 'mixing', past: 'mixed', pp: 'mixed', zh: '混合' },
-    reg('peel', 'Cooking', 'peel', '削皮'),
-    reg('pour', 'Cooking', 'pour', '倒'),
-    reg('bake', 'Cooking', 'bake', '烘焙', 'e'),
-    reg('add', 'Cooking', 'add', '加入'),
-    irr('beat', 'Cooking', 'beat', '攪打', 'beats', 'beating', 'beat', 'beaten'),
-    reg('serve', 'Cooking', 'serve', '上菜/服務', 'e'),
-    reg('slice', 'Cooking', 'slice', '切片', 'e'),
-    irr('spread', 'Cooking', 'spread', '塗抹', 'spreads', 'spreading', 'spread', 'spread'),
-    reg('sprinkle', 'Cooking', 'sprinkle', '撒', 'e'),
-    reg('stir', 'Cooking', 'stir', '攪拌', 'double'),
-    reg('taste', 'Cooking', 'taste', '嚐', 'e'),
-
-    // --- 🏫 School & Learning ---
-    irr('write', 'School', 'write', '寫', 'writes', 'writing', 'wrote', 'written'),
-    irr('read', 'School', 'read', '閱讀', 'reads', 'reading', 'read', 'read'),
-    irr('draw', 'School', 'draw', '畫', 'draws', 'drawing', 'drew', 'drawn'),
-    reg('study', 'School', 'study', '研讀', 'y'),
-    reg('learn', 'School', 'learn', '學習'),
-    reg('listen', 'School', 'listen', '聽'),
-    reg('ask', 'School', 'ask', '詢問'),
-    reg('answer', 'School', 'answer', '回答'),
-    irr('teach', 'School', 'teach', '教導', 'teaches', 'teaching', 'taught', 'taught'),
-    irr('speak', 'School', 'speak', '講話', 'speaks', 'speaking', 'spoke', 'spoken'),
-    irr('say', 'School', 'say', '說', 'says', 'saying', 'said', 'said'),
-    irr('sing', 'School', 'sing', '唱歌', 'sings', 'singing', 'sang', 'sung'),
-    reg('count', 'School', 'count', '數數'),
-    reg('open', 'School', 'open', '打開'),
-    reg('close', 'School', 'close', '關上', 'e'),
-    reg('spell', 'School', 'spell', '拼寫'),
-    { id: 'discuss', cat: 'School', base: 'discuss', s: 'discusses', ing: 'discussing', past: 'discussed', pp: 'discussed', zh: '討論' },
-    reg('explain', 'School', 'explain', '解釋'),
-    reg('practice', 'School', 'practice', '練習', 'e'),
-    reg('present', 'School', 'present', '匯報'),
-    reg('revise', 'School', 'revise', '溫習', 'e'),
-
-    // --- 🧠 Mental & Feeling ---
-    irr('think', 'Mental', 'think', '思考', 'thinks', 'thinking', 'thought', 'thought'),
-    irr('know', 'Mental', 'know', '知道', 'knows', 'knowing', 'knew', 'known'),
-    irr('understand', 'Mental', 'understand', '明白', 'understands', 'understanding', 'understood', 'understood'),
-    reg('love', 'Mental', 'love', '愛', 'e'),
-    reg('like', 'Mental', 'like', '喜歡', 'e'),
-    reg('hate', 'Mental', 'hate', '討厭', 'e'),
-    reg('want', 'Mental', 'want', '想要'),
-    reg('need', 'Mental', 'need', '需要'),
-    reg('believe', 'Mental', 'believe', '相信', 'e'),
-    irr('feel', 'Mental', 'feel', '感覺', 'feels', 'feeling', 'felt', 'felt'),
-    irr('hear', 'Mental', 'hear', '聽見', 'hears', 'hearing', 'heard', 'heard'),
-    irr('see', 'Mental', 'see', '看見', 'sees', 'seeing', 'saw', 'seen'),
-    irr('forget', 'Mental', 'forget', '忘記', 'forgets', 'forgetting', 'forgot', 'forgotten'),
-    reg('remember', 'Mental', 'remember', '記得'),
-    reg('agree', 'Mental', 'agree', '同意', 'e'),
-    reg('decide', 'Mental', 'decide', '決定', 'e'),
-    reg('enjoy', 'Mental', 'enjoy', '享受'),
-    reg('hope', 'Mental', 'hope', '希望', 'e'),
-    irr('mean', 'Mental', 'mean', '意思是', 'means', 'meaning', 'meant', 'meant'),
-    { id: 'wish', cat: 'Mental', base: 'wish', s: 'wishes', ing: 'wishing', past: 'wished', pp: 'wished', zh: '希望' },
-    reg('worry', 'Mental', 'worry', '擔心', 'y'),
-    reg('wonder', 'Mental', 'wonder', '納悶'),
-    reg('realize', 'Mental', 'realize', '意識到', 'e'),
-    reg('imagine', 'Mental', 'imagine', '想像', 'e'),
-    reg('expect', 'Mental', 'expect', '預期'),
-
-    // --- 🔥 Irregular Checklist (Essential) ---
-    irr('go', 'Irregular', 'go', '去', 'goes', 'going', 'went', 'gone'),
-    irr('do', 'Irregular', 'do', '做', 'does', 'doing', 'did', 'done'),
-    irr('have', 'Irregular', 'have', '有', 'has', 'having', 'had', 'had'),
-    irr('be', 'Irregular', 'be', '是/在', 'is', 'being', 'was/were', 'been'),
-    irr('become', 'Irregular', 'become', '變成', 'becomes', 'becoming', 'became', 'become'),
-    irr('begin', 'Irregular', 'begin', '開始', 'begins', 'beginning', 'began', 'begun'),
-    irr('bite', 'Irregular', 'bite', '咬', 'bites', 'biting', 'bit', 'bitten'),
-    irr('blow', 'Irregular', 'blow', '吹', 'blows', 'blowing', 'blew', 'blown'),
-    irr('break', 'Irregular', 'break', '打破', 'breaks', 'breaking', 'broke', 'broken'),
-    irr('bring', 'Irregular', 'bring', '帶來', 'brings', 'bringing', 'brought', 'brought'),
-    irr('build', 'Irregular', 'build', '建造', 'builds', 'building', 'built', 'built'),
-    irr('buy', 'Irregular', 'buy', '買', 'buys', 'buying', 'bought', 'bought'),
-    irr('catch', 'Irregular', 'catch', '捉', 'catches', 'catching', 'caught', 'caught'),
-    irr('choose', 'Irregular', 'choose', '選擇', 'chooses', 'choosing', 'chose', 'chosen'),
-    irr('come', 'Irregular', 'come', '來', 'comes', 'coming', 'came', 'come'),
-    irr('cost', 'Irregular', 'cost', '價值', 'costs', 'costing', 'cost', 'cost'),
-    irr('cut', 'Irregular', 'cut', '切', 'cuts', 'cutting', 'cut', 'cut'),
-    irr('dig', 'Irregular', 'dig', '挖掘', 'digs', 'digging', 'dug', 'dug'),
-    irr('drive', 'Irregular', 'drive', '駕駛', 'drives', 'driving', 'drove', 'driven'),
-    irr('fall', 'Irregular', 'fall', '跌倒', 'falls', 'falling', 'fell', 'fallen'),
-    irr('feed', 'Irregular', 'feed', '餵食', 'feeds', 'feeding', 'fed', 'fed'),
-    irr('fight', 'Irregular', 'fight', '打架', 'fights', 'fighting', 'fought', 'fought'),
-    irr('find', 'Irregular', 'find', '找到', 'finds', 'finding', 'found', 'found'),
-    irr('fly', 'Irregular', 'fly', '飛', 'flies', 'flying', 'flew', 'flown'),
-    irr('freeze', 'Irregular', 'freeze', '結冰', 'freezes', 'freezing', 'froze', 'frozen'),
-    irr('give', 'Irregular', 'give', '給', 'gives', 'giving', 'gave', 'given'),
-    irr('grow', 'Irregular', 'grow', '生長', 'grows', 'growing', 'grew', 'grown'),
-    irr('hide', 'Irregular', 'hide', '躲藏', 'hides', 'hiding', 'hid', 'hidden'),
-    irr('hit', 'Irregular', 'hit', '擊打', 'hits', 'hitting', 'hit', 'hit'),
-    irr('hold', 'Irregular', 'hold', '握住', 'holds', 'holding', 'held', 'held'),
-    irr('hurt', 'Irregular', 'hurt', '傷害', 'hurts', 'hurting', 'hurt', 'hurt'),
-    irr('keep', 'Irregular', 'keep', '保持', 'keeps', 'keeping', 'kept', 'kept'),
-    irr('leave', 'Irregular', 'leave', '離開', 'leaves', 'leaving', 'left', 'left'),
-    irr('lend', 'Irregular', 'lend', '借出', 'lends', 'lending', 'lent', 'lent'),
-    irr('let', 'Irregular', 'let', '讓', 'lets', 'letting', 'let', 'let'),
-    irr('lose', 'Irregular', 'lose', '失去', 'loses', 'losing', 'lost', 'lost'),
-    irr('make', 'Irregular', 'make', '製作', 'makes', 'making', 'made', 'made'),
-    irr('meet', 'Irregular', 'meet', '遇見', 'meets', 'meeting', 'met', 'met'),
-    irr('pay', 'Irregular', 'pay', '付款', 'pays', 'paying', 'paid', 'paid'),
-    irr('put', 'Irregular', 'put', '放置', 'puts', 'putting', 'put', 'put'),
-    irr('ride', 'Irregular', 'ride', '騎', 'rides', 'riding', 'rode', 'ridden'),
-    irr('ring', 'Irregular', 'ring', '響', 'rings', 'ringing', 'rang', 'rung'),
-    irr('rise', 'Irregular', 'rise', '上升', 'rises', 'rising', 'rose', 'risen'),
-    irr('sell', 'Irregular', 'sell', '賣', 'sells', 'selling', 'sold', 'sold'),
-    irr('send', 'Irregular', 'send', '寄送', 'sends', 'sending', 'sent', 'sent'),
-    irr('shake', 'Irregular', 'shake', '搖動', 'shakes', 'shaking', 'shook', 'shaken'),
-    irr('shine', 'Irregular', 'shine', '照耀', 'shines', 'shining', 'shone', 'shone'),
-    irr('shoot', 'Irregular', 'shoot', '射擊', 'shoots', 'shooting', 'shot', 'shot'),
-    irr('show', 'Irregular', 'show', '展示', 'shows', 'showing', 'showed', 'shown'),
-    irr('shut', 'Irregular', 'shut', '關閉', 'shuts', 'shutting', 'shut', 'shut'),
-    irr('spend', 'Irregular', 'spend', '花費', 'spends', 'spending', 'spent', 'spent'),
-    irr('steal', 'Irregular', 'steal', '偷竊', 'steals', 'stealing', 'stole', 'stolen'),
-    irr('sweep', 'Irregular', 'sweep', '掃', 'sweeps', 'sweeping', 'swept', 'swept'),
-    irr('take', 'Irregular', 'take', '拿取', 'takes', 'taking', 'took', 'taken'),
-    irr('tear', 'Irregular', 'tear', '撕裂', 'tears', 'tearing', 'tore', 'torn'),
-    irr('tell', 'Irregular', 'tell', '告訴', 'tells', 'telling', 'told', 'told'),
-    irr('throw', 'Irregular', 'throw', '投擲', 'throws', 'throwing', 'threw', 'thrown'),
-    irr('wake', 'Irregular', 'wake', '醒來', 'wakes', 'waking', 'woke', 'woken'),
-    irr('win', 'Irregular', 'win', '贏', 'wins', 'winning', 'won', 'won'),
-
-    // --- 🌍 Social & Activity ---
-    reg('invite', 'Social', 'invite', '邀請', 'e'),
-    reg('share', 'Social', 'share', '分享', 'e'),
-    reg('decorate', 'Social', 'decorate', '裝飾', 'e'),
-    reg('visit', 'Social', 'visit', '拜訪'),
-    reg('join', 'Social', 'join', '參加'),
-    reg('start', 'Social', 'start', '開始'),
-    reg('stop', 'Social', 'stop', '停止', 'double'),
-    { id: 'finish', cat: 'Social', base: 'finish', s: 'finishes', ing: 'finishing', past: 'finished', pp: 'finished', zh: '完成' },
-    reg('arrive', 'Social', 'arrive', '到達', 'e'),
-    reg('borrow', 'Social', 'borrow', '借入'),
-    reg('return', 'Social', 'return', '歸還'),
-    reg('celebrate', 'Social', 'celebrate', '慶祝', 'e'),
-    reg('change', 'Social', 'change', '改變', 'e'),
-    reg('collect', 'Social', 'collect', '收集'),
-    reg('donate', 'Social', 'donate', '捐贈', 'e'),
-    reg('drop', 'Social', 'drop', '掉落', 'double'),
-    reg('follow', 'Social', 'follow', '跟隨'),
-    reg('happen', 'Social', 'happen', '發生'),
-    reg('live', 'Social', 'live', '居住', 'e'),
-    reg('move', 'Social', 'move', '移動', 'e'),
-    reg('pick', 'Social', 'pick', '摘/撿'),
-    reg('plant', 'Social', 'plant', '種植'),
-    reg('prepare', 'Social', 'prepare', '準備', 'e'),
-    reg('pull', 'Social', 'pull', '拉'),
-    { id: 'push', cat: 'Social', base: 'push', s: 'pushes', ing: 'pushing', past: 'pushed', pp: 'pushed', zh: '推' },
-    reg('receive', 'Social', 'receive', '收到', 'e'),
-    reg('save', 'Social', 'save', '儲蓄/救', 'e'),
-    reg('shout', 'Social', 'shout', '大叫'),
-    reg('stay', 'Social', 'stay', '停留'),
-    { id: 'touch', cat: 'Social', base: 'touch', s: 'touches', ing: 'touching', past: 'touched', pp: 'touched', zh: '觸摸' },
-    reg('travel', 'Social', 'travel', '旅行', 'double'),
-    reg('try', 'Social', 'try', '嘗試', 'y'),
-    reg('turn', 'Social', 'turn', '轉'),
-    reg('use', 'Social', 'use', '使用', 'e'),
-    reg('work', 'Social', 'work', '工作'),
-
-    // --- 🚀 Advanced ---
-    reg('rob', 'Advanced', 'rob', '搶劫', 'double'),
-    reg('recycle', 'Advanced', 'recycle', '回收', 'e'),
-    reg('achieve', 'Advanced', 'achieve', '達成', 'e'),
-    reg('create', 'Advanced', 'create', '創造', 'e'),
-    reg('discover', 'Advanced', 'discover', '發現'),
-    reg('advise', 'Advanced', 'advise', '建議', 'e'),
-    reg('afford', 'Advanced', 'afford', '負擔得起'),
-    reg('allow', 'Advanced', 'allow', '允許'),
-    reg('appear', 'Advanced', 'appear', '出現'),
-    reg('argue', 'Advanced', 'argue', '爭論', 'e'),
-    reg('arrest', 'Advanced', 'arrest', '逮捕'),
-    reg('attack', 'Advanced', 'attack', '攻擊'),
-    reg('attend', 'Advanced', 'attend', '出席'),
-    reg('avoid', 'Advanced', 'avoid', '避免'),
-    reg('blame', 'Advanced', 'blame', '怪責', 'e'),
-    reg('bother', 'Advanced', 'bother', '打擾'),
-    reg('complain', 'Advanced', 'complain', '投訴'),
-    reg('complete', 'Advanced', 'complete', '完成', 'e'),
-    reg('connect', 'Advanced', 'connect', '連接'),
-    reg('damage', 'Advanced', 'damage', '損壞', 'e'),
-    reg('describe', 'Advanced', 'describe', '描述', 'e'),
-    reg('destroy', 'Advanced', 'destroy', '摧毀'),
-    reg('disappear', 'Advanced', 'disappear', '消失'),
-    reg('disturb', 'Advanced', 'disturb', '打擾'),
-    reg('encourage', 'Advanced', 'encourage', '鼓勵', 'e'),
-    reg('escape', 'Advanced', 'escape', '逃脫', 'e'),
-    reg('examine', 'Advanced', 'examine', '檢查', 'e'),
-    reg('explore', 'Advanced', 'explore', '探索', 'e'),
-    reg('fail', 'Advanced', 'fail', '失敗'),
-    reg('force', 'Advanced', 'force', '強迫', 'e'),
-    reg('gather', 'Advanced', 'gather', '聚集'),
-    reg('guide', 'Advanced', 'guide', '指引', 'e'),
-    reg('handle', 'Advanced', 'handle', '處理', 'e'),
-    reg('ignore', 'Advanced', 'ignore', '忽視', 'e'),
-    reg('improve', 'Advanced', 'improve', '改善', 'e'),
-    reg('include', 'Advanced', 'include', '包括', 'e'),
-    reg('increase', 'Advanced', 'increase', '增加', 'e'),
-    reg('injure', 'Advanced', 'injure', '受傷', 'e'),
-    reg('interrupt', 'Advanced', 'interrupt', '打斷'),
-    reg('introduce', 'Advanced', 'introduce', '介紹', 'e'),
-    reg('invent', 'Advanced', 'invent', '發明'),
-    reg('judge', 'Advanced', 'judge', '評判', 'e'),
-    reg('manage', 'Advanced', 'manage', '管理', 'e'),
-    reg('measure', 'Advanced', 'measure', '量度', 'e'),
-    reg('mention', 'Advanced', 'mention', '提及'),
-    reg('notice', 'Advanced', 'notice', '注意到', 'e'),
-    reg('obey', 'Advanced', 'obey', '服從'),
-    reg('offer', 'Advanced', 'offer', '提供'),
-    reg('perform', 'Advanced', 'perform', '表演'),
-    reg('pollute', 'Advanced', 'pollute', '污染', 'e'),
-    reg('prevent', 'Advanced', 'prevent', '防止'),
-    reg('produce', 'Advanced', 'produce', '生產', 'e'),
-    reg('promise', 'Advanced', 'promise', '承諾', 'e'),
-    reg('protect', 'Advanced', 'protect', '保護'),
-    reg('provide', 'Advanced', 'provide', '提供', 'e'),
-    { id: 'punish', cat: 'Advanced', base: 'punish', s: 'punishes', ing: 'punishing', past: 'punished', pp: 'punished', zh: '懲罰' },
-    reg('refuse', 'Advanced', 'refuse', '拒絕', 'e'),
-    reg('remind', 'Advanced', 'remind', '提醒'),
-    reg('repair', 'Advanced', 'repair', '修理'),
-    reg('repeat', 'Advanced', 'repeat', '重複'),
-    reg('replace', 'Advanced', 'replace', '取代', 'e'),
-    reg('reply', 'Advanced', 'reply', '回覆', 'y'),
-    reg('report', 'Advanced', 'report', '報告'),
-    reg('rescue', 'Advanced', 'rescue', '拯救', 'e'),
-    reg('respect', 'Advanced', 'respect', '尊重'),
-    { id: 'search', cat: 'Advanced', base: 'search', s: 'searches', ing: 'searching', past: 'searched', pp: 'searched', zh: '搜尋' },
-    reg('solve', 'Advanced', 'solve', '解決', 'e'),
-    reg('suggest', 'Advanced', 'suggest', '建議'),
-    reg('support', 'Advanced', 'support', '支持'),
-    reg('survive', 'Advanced', 'survive', '存活', 'e'),
-    reg('trust', 'Advanced', 'trust', '信任'),
-    reg('warn', 'Advanced', 'warn', '警告'),
-    reg('waste', 'Advanced', 'waste', '浪費', 'e'),
-    reg('whisper', 'Advanced', 'whisper', '低語'),
-  ], []);
-
-  const categories = ['All', 'Action', 'Cooking', 'School', 'Mental', 'Irregular', 'Social', 'Advanced'];
-
-  // --- Voice Initialization ---
-  useEffect(() => {
-    const loadVoices = () => {
-      const allVoices = window.speechSynthesis.getVoices();
-      // Try to find a gentle US voice
-      const usVoice = allVoices.find(v => v.name === 'Google US English') || 
-                      allVoices.find(v => v.lang === 'en-US' && v.name.includes('Samantha')) ||
-                      allVoices.find(v => v.lang === 'en-US');
-      setSelectedVoice(usVoice);
-    };
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-  }, []);
-
-  const speak = (text) => {
-    if (!text) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    if (selectedVoice) utterance.voice = selectedVoice;
-    utterance.lang = 'en-US';
-    utterance.rate = 0.8;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    window.speechSynthesis.speak(utterance);
-  };
-
-  // --- Filtering Logic (Categories + Search) ---
-  const filteredVerbs = useMemo(() => {
-    return verbsData.filter(v => {
-      const matchesCategory = category === 'All' || v.cat === category;
-      const matchesSearch = v.base.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            v.zh.includes(searchTerm);
-      return matchesCategory && matchesSearch;
-    });
-  }, [category, searchTerm, verbsData]);
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verb Master - Interactive Learning</title>
     
-  const currentVerb = filteredVerbs[currentVerbIndex] || filteredVerbs[0] || verbsData[0];
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  useEffect(() => {
-    setCurrentVerbIndex(0);
-    resetSpelling();
-    setActiveTense('past'); // Reset to default active tense
-  }, [category, searchTerm]);
-
-  useEffect(() => {
-    resetSpelling();
-    setActiveTense('past');
-  }, [currentVerbIndex, mode]);
-
-  const nextVerb = () => {
-    if (filteredVerbs.length > 0) {
-      setCurrentVerbIndex(prev => (prev + 1) % filteredVerbs.length);
-    }
-  };
-
-  const prevVerb = () => {
-     if (filteredVerbs.length > 0) {
-       setCurrentVerbIndex(prev => (prev - 1 + filteredVerbs.length) % filteredVerbs.length);
-     }
-  };
-
-  const resetSpelling = () => {
-    setUserSpelling('');
-    setSpellingFeedback(null);
-    setHintLevel(0);
-  };
-
-  const checkSpelling = () => {
-    if (userSpelling.toLowerCase().trim() === currentVerb.base.toLowerCase()) {
-      setSpellingFeedback('correct');
-      speak(`Correct! ${currentVerb.base}`);
-    } else {
-      setSpellingFeedback('incorrect');
-      speak("Try again.");
-    }
-  };
-
-  // --- Dynamic Example Generator ---
-  const getExampleSentence = (verb, tense) => {
-      if (!verb) return "";
-      switch(tense) {
-          case 'base': return `I can ${verb.base} very well.`;
-          case 's': return `He ${verb.s} every single day.`;
-          case 'ing': return `Look! She is ${verb.ing} right now.`;
-          case 'past': return `Yesterday, we ${verb.past} together.`;
-          case 'pp': return `I have ${verb.pp} many times.`;
-          default: return `Yesterday, I ${verb.past}.`;
-      }
-  };
-
-  // Get active word for the selected tense to highlight it
-  const getActiveWord = (verb, tense) => {
-      if (!verb) return "";
-      switch(tense) {
-          case 'base': return verb.base;
-          case 's': return verb.s;
-          case 'ing': return verb.ing;
-          case 'past': return verb.past;
-          case 'pp': return verb.pp;
-          default: return verb.past;
-      }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#f8f5f2] text-slate-700 font-sans selection:bg-amber-100">
-      
-      {/* --- Top Navigation --- */}
-      <nav className="bg-white border-b-2 border-slate-100 sticky top-0 z-20 shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 py-3 space-y-3">
-          
-          <div className="flex flex-wrap justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center border-2 border-amber-300 shadow-sm relative overflow-hidden group">
-                  <GraduationCap size={22} className="text-amber-600 relative z-10" />
-                  <div className="absolute inset-0 bg-amber-200 opacity-0 group-hover:opacity-30 transition-opacity"></div>
-              </div>
-              <span className="font-extrabold text-xl tracking-tight text-slate-800 hidden sm:block">Verb Master</span>
-            </div>
-
-            {/* Search Bar - Enhanced */}
-            <div className="flex-1 max-w-sm relative group flex items-center gap-2">
-               <div className="flex items-center justify-center w-8 h-8 bg-amber-50 rounded-full text-amber-500 border border-amber-100">
-                  <Search size={16} />
-               </div>
-               <div className="relative w-full">
-                   <input 
-                     type="text" 
-                     placeholder="Search..."
-                     value={searchTerm}
-                     onChange={(e) => setSearchTerm(e.target.value)}
-                     className="w-full pl-3 pr-4 py-2 rounded-full border-2 border-slate-200 focus:outline-none focus:border-amber-400 text-sm bg-white transition-all font-medium"
-                   />
-               </div>
-            </div>
-
-            <div className="flex bg-slate-100 rounded-lg p-1">
-              <button 
-                onClick={() => setMode('learn')}
-                className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === 'learn' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                <BookOpen size={16} className="mr-2" /> Learn
-              </button>
-              <button 
-                onClick={() => setMode('spell')}
-                className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === 'spell' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                <Edit3 size={16} className="mr-2" /> Spell
-              </button>
-            </div>
-          </div>
-
-          {/* Category Scroll */}
-          <div className="overflow-x-auto no-scrollbar pt-1 pb-2">
-             <div className="flex space-x-2">
-               {categories.map(cat => (
-                 <button
-                  key={cat}
-                  onClick={() => setCategory(cat)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap border transition-all
-                    ${category === cat 
-                      ? 'bg-slate-800 text-white border-slate-800 shadow-md transform scale-105' 
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600'
-                    }`}
-                 >
-                   {cat}
-                 </button>
-               ))}
-             </div>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-2xl mx-auto p-4 md:p-6">
-        
-        {/* --- Card Container --- */}
-        <div className="bg-white rounded-3xl shadow-xl border-4 border-slate-800 overflow-hidden relative flex flex-col min-h-[500px]">
-          
-          {/* Header Area within Card */}
-          <div className="bg-slate-50 px-6 py-4 flex justify-between items-center border-b border-slate-100">
-             <span className="text-xs font-bold text-amber-500 uppercase tracking-widest flex items-center">
-               {currentVerb.cat} 
-               <span className="mx-2 text-slate-300">|</span> 
-               {filteredVerbs.length > 0 ? currentVerbIndex + 1 : 0}/{filteredVerbs.length}
-             </span>
-             <div className="flex gap-2">
-               <button onClick={prevVerb} className="p-2 rounded-lg hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors disabled:opacity-50" disabled={filteredVerbs.length === 0}><ChevronLeft size={20}/></button>
-               <button onClick={nextVerb} className="p-2 rounded-lg hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors disabled:opacity-50" disabled={filteredVerbs.length === 0}><ChevronRight size={20}/></button>
-             </div>
-          </div>
-
-          {filteredVerbs.length === 0 ? (
-             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 min-h-[300px]">
-               <Search size={48} className="mb-4 opacity-20" />
-               <p>No verbs found matching "{searchTerm}"</p>
-               <button onClick={() => setSearchTerm('')} className="mt-4 text-amber-500 font-bold hover:underline">Clear Search</button>
-             </div>
-          ) : (
-             <div className="flex-1 flex flex-col p-6 md:p-8">
-               
-               {/* Hero Area: Title & Meaning */}
-               <div className="text-center mb-8 relative">
-                   <h2 className="text-5xl md:text-6xl font-black text-slate-800 mb-3 tracking-wider break-words">
-                     {mode === 'spell' ? '???' : currentVerb.base}
-                   </h2>
-                   <div className="inline-flex items-center justify-center gap-3">
-                     <span className="text-lg font-medium text-slate-500 bg-slate-50 px-4 py-1 rounded-full border border-slate-200">
-                       {currentVerb.zh}
-                     </span>
-                     <button 
-                       onClick={() => speak(currentVerb.base)}
-                       className="p-2 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-full border-2 border-slate-900 shadow-sm transition-transform hover:scale-110"
-                       title="Play Pronunciation"
-                     >
-                       <Volume2 size={20} />
-                     </button>
-                   </div>
-               </div>
-
-               {/* Content Area */}
-               {mode === 'learn' ? (
-                 <div className="animate-fadeIn space-y-6">
-                    <div>
-                      <h3 className="text-sm uppercase font-bold text-slate-400 mb-3 tracking-widest text-center flex items-center justify-center gap-2">
-                          <MousePointerClick size={14} /> Click a form for example
-                      </h3>
-                      <div className="space-y-2">
-                        <TenseRow 
-                            label="Base Form" 
-                            val={currentVerb.base} 
-                            active={activeTense === 'base'}
-                            color="bg-blue-50 text-blue-700 border-blue-200" 
-                            activeColor="bg-blue-600 text-white border-blue-600 shadow-md transform scale-[1.02]"
-                            onClick={() => setActiveTense('base')}
-                            audio={currentVerb.base}
-                            play={speak}
-                        />
-                        <TenseRow 
-                            label="3rd Person (Present)" 
-                            val={currentVerb.s} 
-                            active={activeTense === 's'}
-                            color="bg-green-50 text-green-700 border-green-200" 
-                            activeColor="bg-green-600 text-white border-green-600 shadow-md transform scale-[1.02]"
-                            onClick={() => setActiveTense('s')}
-                            audio={currentVerb.s}
-                            play={speak}
-                        />
-                        <TenseRow 
-                            label="Present Continuous" 
-                            val={currentVerb.ing} 
-                            active={activeTense === 'ing'}
-                            color="bg-purple-50 text-purple-700 border-purple-200" 
-                            activeColor="bg-purple-600 text-white border-purple-600 shadow-md transform scale-[1.02]"
-                            onClick={() => setActiveTense('ing')}
-                            audio={currentVerb.ing}
-                            play={speak}
-                        />
-                        <TenseRow 
-                            label="Simple Past" 
-                            val={currentVerb.past} 
-                            active={activeTense === 'past'}
-                            color="bg-orange-50 text-orange-700 border-orange-200" 
-                            activeColor="bg-orange-600 text-white border-orange-600 shadow-md transform scale-[1.02]"
-                            onClick={() => setActiveTense('past')}
-                            audio={currentVerb.past}
-                            play={speak}
-                        />
-                        <TenseRow 
-                            label="Past Participle" 
-                            val={currentVerb.pp} 
-                            active={activeTense === 'pp'}
-                            color="bg-pink-50 text-pink-700 border-pink-200" 
-                            activeColor="bg-pink-600 text-white border-pink-600 shadow-md transform scale-[1.02]"
-                            onClick={() => setActiveTense('pp')}
-                            audio={currentVerb.pp}
-                            play={speak}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="p-5 bg-slate-50 rounded-xl border border-slate-100 text-center transition-all min-h-[100px] flex flex-col justify-center">
-                      <p className="text-xs text-slate-400 uppercase font-bold mb-2 tracking-wider">
-                          Example ({activeTense === 'base' ? 'Base Form' : activeTense === 's' ? '3rd Person' : activeTense === 'ing' ? 'Continuous' : activeTense === 'past' ? 'Past' : 'Past Participle'})
-                      </p>
-                      <p className="text-slate-700 italic text-lg leading-relaxed animate-fadeIn">
-                        "{getExampleSentence(currentVerb, activeTense).split(getActiveWord(currentVerb, activeTense)).map((part, i, arr) => (
-                            <React.Fragment key={i}>
-                                {part}
-                                {i < arr.length - 1 && <strong className="text-amber-600 border-b-2 border-amber-300 mx-1">{getActiveWord(currentVerb, activeTense)}</strong>}
-                            </React.Fragment>
-                        ))}"
-                      </p>
-                    </div>
-                 </div>
-               ) : (
-                 <div className="flex-1 flex flex-col justify-center animate-fadeIn">
-                    <div className="text-center mb-8">
-                       <p className="text-slate-500 mb-6 text-lg">Type the <strong>Base Form</strong></p>
-                       
-                       <div className="relative max-w-xs mx-auto">
-                         <input 
-                           type="text" 
-                           value={userSpelling}
-                           onChange={(e) => { setUserSpelling(e.target.value); setSpellingFeedback(null); }}
-                           onKeyDown={(e) => e.key === 'Enter' && checkSpelling()}
-                           className={`w-full text-center text-3xl font-bold p-4 rounded-xl border-4 outline-none transition-all shadow-inner
-                             ${spellingFeedback === 'correct' ? 'border-green-400 bg-green-50 text-green-800' : 
-                               spellingFeedback === 'incorrect' ? 'border-red-400 bg-red-50 text-red-800' : 'border-slate-200 focus:border-amber-400 focus:bg-amber-50'}`}
-                           placeholder="..."
-                           autoFocus
-                           autoComplete="off"
-                           autoCorrect="off"
-                         />
-                         {spellingFeedback === 'correct' && <Check className="absolute right-4 top-5 text-green-500 animate-bounce" size={28} />}
-                         {spellingFeedback === 'incorrect' && <X className="absolute right-4 top-5 text-red-500 animate-pulse" size={28} />}
-                       </div>
-                    </div>
-
-                    <div className="flex justify-center gap-3">
-                       <button onClick={checkSpelling} className="px-8 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 shadow-[0px_4px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-1 active:shadow-none transition-all w-32">
-                         Check
-                       </button>
-                       <button onClick={() => { setHintLevel(prev => prev + 1); speak(currentVerb.base[0]); }} className="px-4 py-3 bg-white text-slate-500 border-2 border-slate-200 rounded-xl font-bold hover:bg-slate-50 hover:border-amber-300 transition-colors">
-                         Hint?
-                       </button>
-                    </div>
-                    
-                    {hintLevel > 0 && (
-                      <div className="text-center mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                        <p className="text-sm text-slate-400 mb-1">Hint</p>
-                        <p className="text-amber-500 font-mono tracking-[0.5em] text-2xl font-bold uppercase">
-                           {currentVerb.base.substring(0, hintLevel) + "_".repeat(Math.max(0, currentVerb.base.length - hintLevel))}
-                        </p>
-                      </div>
-                    )}
-                 </div>
-               )}
-             </div>
-          )}
-        </div>
-        
-        <div className="text-center mt-8 text-slate-400 text-xs uppercase tracking-widest font-semibold">
-           HK Primary English Curriculum • 200+ Verbs Database
-        </div>
-      </main>
-
-      <style>{`
+    <style>
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
-      `}</style>
-    </div>
-  );
-};
+    </style>
+</head>
+<body class="bg-[#f8f5f2]">
+    <div id="root"></div>
 
-// --- Component: Tense Row (Updated for Selection & Audio) ---
-const TenseRow = ({ label, val, color, activeColor, active, onClick, play, audio }) => (
-  <div 
-    onClick={(e) => { 
-        // Prevent bubbling if needed, but mainly ensure both actions happen
-        onClick(); 
-        play(audio); 
-    }}
-    className={`flex justify-between items-center px-4 py-3 rounded-xl border cursor-pointer hover:opacity-90 transition-all active:scale-[0.99]
-      ${active ? activeColor : color + ' hover:brightness-95'}
-    `}
-  >
-    <div className="flex flex-col text-left">
-       <span className={`text-[10px] uppercase font-bold tracking-wider ${active ? 'opacity-90' : 'opacity-60'}`}>{label}</span>
-       <span className="text-lg font-bold font-mono">{val}</span>
-    </div>
-    <button 
-        className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${active ? 'bg-white/30 text-white hover:bg-white/40' : 'bg-white/50 text-slate-600 hover:bg-white/70'}`}
-        onClick={(e) => {
-            e.stopPropagation(); // Stop row click
-            onClick(); // Still select row
-            play(audio); // Play audio
-        }}
-    >
-        <Volume2 size={16} />
-    </button>
-  </div>
-);
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
 
-export default PrimaryVerbsApp;
+        // --- Custom Icons (Replacing Lucide-React for standalone usage) ---
+        const Icon = ({ path, size = 24, className = "", fill = "none" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
+
+        const Volume2 = (p) => <Icon {...p} path={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></>} />;
+        const BookOpen = (p) => <Icon {...p} path={<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>} />;
+        const Edit3 = (p) => <Icon {...p} path={<path d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>} />;
+        const ChevronLeft = (p) => <Icon {...p} path={<polyline points="15 18 9 12 15 6"></polyline>} />;
+        const ChevronRight = (p) => <Icon {...p} path={<polyline points="9 18 15 12 9 6"></polyline>} />;
+        const SearchIcon = (p) => <Icon {...p} path={<><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></>} />;
+        const Check = (p) => <Icon {...p} path={<polyline points="20 6 9 17 4 12"></polyline>} />;
+        const X = (p) => <Icon {...p} path={<><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></>} />;
+        const MousePointerClick = (p) => <Icon {...p} path={<><path d="M14 4.1 12 6"/><path d="m5.1 8-2.9-.8"/><path d="m6 12-1.9 2"/><path d="M7.2 2.2 8 5.1"/><path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"/></>} />;
+        const GraduationCap = (p) => <Icon {...p} path={<><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></>} />;
+
+        // --- Main Application ---
+        const PrimaryVerbsApp = () => {
+            const [mode, setMode] = useState('learn'); // 'learn' | 'spell'
+            const [category, setCategory] = useState('All');
+            const [currentVerbIndex, setCurrentVerbIndex] = useState(0);
+            const [selectedVoice, setSelectedVoice] = useState(null);
+            const [searchTerm, setSearchTerm] = useState('');
+            
+            // New State for Dynamic Examples
+            const [activeTense, setActiveTense] = useState('past'); // 'base', 's', 'ing', 'past', 'pp'
+            
+            // Spelling State
+            const [userSpelling, setUserSpelling] = useState('');
+            const [spellingFeedback, setSpellingFeedback] = useState(null);
+            const [hintLevel, setHintLevel] = useState(0);
+
+            // --- COMPREHENSIVE DATASET ---
+            // Helper to create regular verb objects quickly
+            const reg = (id, cat, base, zh, type = 'normal') => {
+                let s, ing, past, pp;
+                if (type === 'normal') {
+                    s = base + 's'; ing = base + 'ing'; past = base + 'ed'; pp = base + 'ed';
+                } else if (type === 'e') { // dance -> dances, dancing, danced
+                    s = base + 's'; ing = base.slice(0, -1) + 'ing'; past = base + 'd'; pp = base + 'd';
+                } else if (type === 'y') { // study -> studies, studying, studied
+                    s = base.slice(0, -1) + 'ies'; ing = base + 'ing'; past = base.slice(0, -1) + 'ied'; pp = base.slice(0, -1) + 'ied';
+                } else if (type === 'double') { // stop -> stops, stopping, stopped
+                    s = base + 's'; ing = base + base.slice(-1) + 'ing'; past = base + base.slice(-1) + 'ed'; pp = base + base.slice(-1) + 'ed';
+                }
+                return { id, cat, base, s, ing, past, pp, zh };
+            };
+
+            // Helper for irregulars
+            const irr = (id, cat, base, zh, s, ing, past, pp) => ({ id, cat, base, zh, s, ing, past, pp });
+
+            const verbsData = useMemo(() => [
+                // --- 🏃 Action (Daily Life) ---
+                irr('run', 'Action', 'run', '跑', 'runs', 'running', 'ran', 'run'),
+                irr('jump', 'Action', 'jump', '跳', 'jumps', 'jumping', 'jumped', 'jumped'),
+                irr('swim', 'Action', 'swim', '游泳', 'swims', 'swimming', 'swam', 'swum'),
+                reg('walk', 'Action', 'walk', '走路'),
+                irr('sit', 'Action', 'sit', '坐', 'sits', 'sitting', 'sat', 'sat'),
+                irr('stand', 'Action', 'stand', '站立', 'stands', 'standing', 'stood', 'stood'),
+                irr('sleep', 'Action', 'sleep', '睡覺', 'sleeps', 'sleeping', 'slept', 'slept'),
+                irr('eat', 'Action', 'eat', '吃', 'eats', 'eating', 'ate', 'eaten'),
+                irr('drink', 'Action', 'drink', '喝', 'drinks', 'drinking', 'drank', 'drunk'),
+                { id: 'brush', cat: 'Action', base: 'brush', s: 'brushes', ing: 'brushing', past: 'brushed', pp: 'brushed', zh: '刷' },
+                { id: 'wash', cat: 'Action', base: 'wash', s: 'washes', ing: 'washing', past: 'washed', pp: 'washed', zh: '洗' },
+                reg('clean', 'Action', 'clean', '清潔'),
+                reg('comb', 'Action', 'comb', '梳(頭)'),
+                reg('dance', 'Action', 'dance', '跳舞', 'e'),
+                reg('help', 'Action', 'help', '幫忙'),
+                reg('kick', 'Action', 'kick', '踢'),
+                reg('laugh', 'Action', 'laugh', '笑'),
+                reg('cry', 'Action', 'cry', '哭', 'y'),
+                reg('play', 'Action', 'play', '玩'),
+                reg('wait', 'Action', 'wait', '等待'),
+                { id: 'watch', cat: 'Action', base: 'watch', s: 'watches', ing: 'watching', past: 'watched', pp: 'watched', zh: '觀看' },
+                irr('wear', 'Action', 'wear', '穿著', 'wears', 'wearing', 'wore', 'worn'),
+                reg('climb', 'Action', 'climb', '攀爬'),
+                reg('talk', 'Action', 'talk', '說話'),
+                reg('pack', 'Action', 'pack', '收拾'),
+                reg('hop', 'Action', 'hop', '單腳跳', 'double'),
+                reg('skip', 'Action', 'skip', '跳繩', 'double'),
+                reg('chew', 'Action', 'chew', '咀嚼'),
+                reg('clap', 'Action', 'clap', '拍手', 'double'),
+                reg('nod', 'Action', 'nod', '點頭', 'double'),
+                reg('wave', 'Action', 'wave', '揮手', 'e'),
+                reg('yawn', 'Action', 'yawn', '打呵欠'),
+
+                // --- 🍳 Cooking & Household ---
+                reg('cook', 'Cooking', 'cook', '烹飪'),
+                reg('boil', 'Cooking', 'boil', '煮沸'),
+                reg('fry', 'Cooking', 'fry', '煎/炒', 'y'),
+                reg('chop', 'Cooking', 'chop', '砍/剁', 'double'),
+                reg('steam', 'Cooking', 'steam', '蒸'),
+                { id: 'mix', cat: 'Cooking', base: 'mix', s: 'mixes', ing: 'mixing', past: 'mixed', pp: 'mixed', zh: '混合' },
+                reg('peel', 'Cooking', 'peel', '削皮'),
+                reg('pour', 'Cooking', 'pour', '倒'),
+                reg('bake', 'Cooking', 'bake', '烘焙', 'e'),
+                reg('add', 'Cooking', 'add', '加入'),
+                irr('beat', 'Cooking', 'beat', '攪打', 'beats', 'beating', 'beat', 'beaten'),
+                reg('serve', 'Cooking', 'serve', '上菜/服務', 'e'),
+                reg('slice', 'Cooking', 'slice', '切片', 'e'),
+                irr('spread', 'Cooking', 'spread', '塗抹', 'spreads', 'spreading', 'spread', 'spread'),
+                reg('sprinkle', 'Cooking', 'sprinkle', '撒', 'e'),
+                reg('stir', 'Cooking', 'stir', '攪拌', 'double'),
+                reg('taste', 'Cooking', 'taste', '嚐', 'e'),
+
+                // --- 🏫 School & Learning ---
+                irr('write', 'School', 'write', '寫', 'writes', 'writing', 'wrote', 'written'),
+                irr('read', 'School', 'read', '閱讀', 'reads', 'reading', 'read', 'read'),
+                irr('draw', 'School', 'draw', '畫', 'draws', 'drawing', 'drew', 'drawn'),
+                reg('study', 'School', 'study', '研讀', 'y'),
+                reg('learn', 'School', 'learn', '學習'),
+                reg('listen', 'School', 'listen', '聽'),
+                reg('ask', 'School', 'ask', '詢問'),
+                reg('answer', 'School', 'answer', '回答'),
+                irr('teach', 'School', 'teach', '教導', 'teaches', 'teaching', 'taught', 'taught'),
+                irr('speak', 'School', 'speak', '講話', 'speaks', 'speaking', 'spoke', 'spoken'),
+                irr('say', 'School', 'say', '說', 'says', 'saying', 'said', 'said'),
+                irr('sing', 'School', 'sing', '唱歌', 'sings', 'singing', 'sang', 'sung'),
+                reg('count', 'School', 'count', '數數'),
+                reg('open', 'School', 'open', '打開'),
+                reg('close', 'School', 'close', '關上', 'e'),
+                reg('spell', 'School', 'spell', '拼寫'),
+                { id: 'discuss', cat: 'School', base: 'discuss', s: 'discusses', ing: 'discussing', past: 'discussed', pp: 'discussed', zh: '討論' },
+                reg('explain', 'School', 'explain', '解釋'),
+                reg('practice', 'School', 'practice', '練習', 'e'),
+                reg('present', 'School', 'present', '匯報'),
+                reg('revise', 'School', 'revise', '溫習', 'e'),
+
+                // --- 🧠 Mental & Feeling ---
+                irr('think', 'Mental', 'think', '思考', 'thinks', 'thinking', 'thought', 'thought'),
+                irr('know', 'Mental', 'know', '知道', 'knows', 'knowing', 'knew', 'known'),
+                irr('understand', 'Mental', 'understand', '明白', 'understands', 'understanding', 'understood', 'understood'),
+                reg('love', 'Mental', 'love', '愛', 'e'),
+                reg('like', 'Mental', 'like', '喜歡', 'e'),
+                reg('hate', 'Mental', 'hate', '討厭', 'e'),
+                reg('want', 'Mental', 'want', '想要'),
+                reg('need', 'Mental', 'need', '需要'),
+                reg('believe', 'Mental', 'believe', '相信', 'e'),
+                irr('feel', 'Mental', 'feel', '感覺', 'feels', 'feeling', 'felt', 'felt'),
+                irr('hear', 'Mental', 'hear', '聽見', 'hears', 'hearing', 'heard', 'heard'),
+                irr('see', 'Mental', 'see', '看見', 'sees', 'seeing', 'saw', 'seen'),
+                irr('forget', 'Mental', 'forget', '忘記', 'forgets', 'forgetting', 'forgot', 'forgotten'),
+                reg('remember', 'Mental', 'remember', '記得'),
+                reg('agree', 'Mental', 'agree', '同意', 'e'),
+                reg('decide', 'Mental', 'decide', '決定', 'e'),
+                reg('enjoy', 'Mental', 'enjoy', '享受'),
+                reg('hope', 'Mental', 'hope', '希望', 'e'),
+                irr('mean', 'Mental', 'mean', '意思是', 'means', 'meaning', 'meant', 'meant'),
+                { id: 'wish', cat: 'Mental', base: 'wish', s: 'wishes', ing: 'wishing', past: 'wished', pp: 'wished', zh: '希望' },
+                reg('worry', 'Mental', 'worry', '擔心', 'y'),
+                reg('wonder', 'Mental', 'wonder', '納悶'),
+                reg('realize', 'Mental', 'realize', '意識到', 'e'),
+                reg('imagine', 'Mental', 'imagine', '想像', 'e'),
+                reg('expect', 'Mental', 'expect', '預期'),
+
+                // --- 🔥 Irregular Checklist (Essential) ---
+                irr('go', 'Irregular', 'go', '去', 'goes', 'going', 'went', 'gone'),
+                irr('do', 'Irregular', 'do', '做', 'does', 'doing', 'did', 'done'),
+                irr('have', 'Irregular', 'have', '有', 'has', 'having', 'had', 'had'),
+                irr('be', 'Irregular', 'be', '是/在', 'is', 'being', 'was/were', 'been'),
+                irr('become', 'Irregular', 'become', '變成', 'becomes', 'becoming', 'became', 'become'),
+                irr('begin', 'Irregular', 'begin', '開始', 'begins', 'beginning', 'began', 'begun'),
+                irr('bite', 'Irregular', 'bite', '咬', 'bites', 'biting', 'bit', 'bitten'),
+                irr('blow', 'Irregular', 'blow', '吹', 'blows', 'blowing', 'blew', 'blown'),
+                irr('break', 'Irregular', 'break', '打破', 'breaks', 'breaking', 'broke', 'broken'),
+                irr('bring', 'Irregular', 'bring', '帶來', 'brings', 'bringing', 'brought', 'brought'),
+                irr('build', 'Irregular', 'build', '建造', 'builds', 'building', 'built', 'built'),
+                irr('buy', 'Irregular', 'buy', '買', 'buys', 'buying', 'bought', 'bought'),
+                irr('catch', 'Irregular', 'catch', '捉', 'catches', 'catching', 'caught', 'caught'),
+                irr('choose', 'Irregular', 'choose', '選擇', 'chooses', 'choosing', 'chose', 'chosen'),
+                irr('come', 'Irregular', 'come', '來', 'comes', 'coming', 'came', 'come'),
+                irr('cost', 'Irregular', 'cost', '價值', 'costs', 'costing', 'cost', 'cost'),
+                irr('cut', 'Irregular', 'cut', '切', 'cuts', 'cutting', 'cut', 'cut'),
+                irr('dig', 'Irregular', 'dig', '挖掘', 'digs', 'digging', 'dug', 'dug'),
+                irr('drive', 'Irregular', 'drive', '駕駛', 'drives', 'driving', 'drove', 'driven'),
+                irr('fall', 'Irregular', 'fall', '跌倒', 'falls', 'falling', 'fell', 'fallen'),
+                irr('feed', 'Irregular', 'feed', '餵食', 'feeds', 'feeding', 'fed', 'fed'),
+                irr('fight', 'Irregular', 'fight', '打架', 'fights', 'fighting', 'fought', 'fought'),
+                irr('find', 'Irregular', 'find', '找到', 'finds', 'finding', 'found', 'found'),
+                irr('fly', 'Irregular', 'fly', '飛', 'flies', 'flying', 'flew', 'flown'),
+                irr('freeze', 'Irregular', 'freeze', '結冰', 'freezes', 'freezing', 'froze', 'frozen'),
+                irr('give', 'Irregular', 'give', '給', 'gives', 'giving', 'gave', 'given'),
+                irr('grow', 'Irregular', 'grow', '生長', 'grows', 'growing', 'grew', 'grown'),
+                irr('hide', 'Irregular', 'hide', '躲藏', 'hides', 'hiding', 'hid', 'hidden'),
+                irr('hit', 'Irregular', 'hit', '擊打', 'hits', 'hitting', 'hit', 'hit'),
+                irr('hold', 'Irregular', 'hold', '握住', 'holds', 'holding', 'held', 'held'),
+                irr('hurt', 'Irregular', 'hurt', '傷害', 'hurts', 'hurting', 'hurt', 'hurt'),
+                irr('keep', 'Irregular', 'keep', '保持', 'keeps', 'keeping', 'kept', 'kept'),
+                irr('leave', 'Irregular', 'leave', '離開', 'leaves', 'leaving', 'left', 'left'),
+                irr('lend', 'Irregular', 'lend', '借出', 'lends', 'lending', 'lent', 'lent'),
+                irr('let', 'Irregular', 'let', '讓', 'lets', 'letting', 'let', 'let'),
+                irr('lose', 'Irregular', 'lose', '失去', 'loses', 'losing', 'lost', 'lost'),
+                irr('make', 'Irregular', 'make', '製作', 'makes', 'making', 'made', 'made'),
+                irr('meet', 'Irregular', 'meet', '遇見', 'meets', 'meeting', 'met', 'met'),
+                irr('pay', 'Irregular', 'pay', '付款', 'pays', 'paying', 'paid', 'paid'),
+                irr('put', 'Irregular', 'put', '放置', 'puts', 'putting', 'put', 'put'),
+                irr('ride', 'Irregular', 'ride', '騎', 'rides', 'riding', 'rode', 'ridden'),
+                irr('ring', 'Irregular', 'ring', '響', 'rings', 'ringing', 'rang', 'rung'),
+                irr('rise', 'Irregular', 'rise', '上升', 'rises', 'rising', 'rose', 'risen'),
+                irr('sell', 'Irregular', 'sell', '賣', 'sells', 'selling', 'sold', 'sold'),
+                irr('send', 'Irregular', 'send', '寄送', 'sends', 'sending', 'sent', 'sent'),
+                irr('shake', 'Irregular', 'shake', '搖動', 'shakes', 'shaking', 'shook', 'shaken'),
+                irr('shine', 'Irregular', 'shine', '照耀', 'shines', 'shining', 'shone', 'shone'),
+                irr('shoot', 'Irregular', 'shoot', '射擊', 'shoots', 'shooting', 'shot', 'shot'),
+                irr('show', 'Irregular', 'show', '展示', 'shows', 'showing', 'showed', 'shown'),
+                irr('shut', 'Irregular', 'shut', '關閉', 'shuts', 'shutting', 'shut', 'shut'),
+                irr('spend', 'Irregular', 'spend', '花費', 'spends', 'spending', 'spent', 'spent'),
+                irr('steal', 'Irregular', 'steal', '偷竊', 'steals', 'stealing', 'stole', 'stolen'),
+                irr('sweep', 'Irregular', 'sweep', '掃', 'sweeps', 'sweeping', 'swept', 'swept'),
+                irr('take', 'Irregular', 'take', '拿取', 'takes', 'taking', 'took', 'taken'),
+                irr('tear', 'Irregular', 'tear', '撕裂', 'tears', 'tearing', 'tore', 'torn'),
+                irr('tell', 'Irregular', 'tell', '告訴', 'tells', 'telling', 'told', 'told'),
+                irr('throw', 'Irregular', 'throw', '投擲', 'throws', 'throwing', 'threw', 'thrown'),
+                irr('wake', 'Irregular', 'wake', '醒來', 'wakes', 'waking', 'woke', 'woken'),
+                irr('win', 'Irregular', 'win', '贏', 'wins', 'winning', 'won', 'won'),
+
+                // --- 🌍 Social & Activity ---
+                reg('invite', 'Social', 'invite', '邀請', 'e'),
+                reg('share', 'Social', 'share', '分享', 'e'),
+                reg('decorate', 'Social', 'decorate', '裝飾', 'e'),
+                reg('visit', 'Social', 'visit', '拜訪'),
+                reg('join', 'Social', 'join', '參加'),
+                reg('start', 'Social', 'start', '開始'),
+                reg('stop', 'Social', 'stop', '停止', 'double'),
+                { id: 'finish', cat: 'Social', base: 'finish', s: 'finishes', ing: 'finishing', past: 'finished', pp: 'finished', zh: '完成' },
+                reg('arrive', 'Social', 'arrive', '到達', 'e'),
+                reg('borrow', 'Social', 'borrow', '借入'),
+                reg('return', 'Social', 'return', '歸還'),
+                reg('celebrate', 'Social', 'celebrate', '慶祝', 'e'),
+                reg('change', 'Social', 'change', '改變', 'e'),
+                reg('collect', 'Social', 'collect', '收集'),
+                reg('donate', 'Social', 'donate', '捐贈', 'e'),
+                reg('drop', 'Social', 'drop', '掉落', 'double'),
+                reg('follow', 'Social', 'follow', '跟隨'),
+                reg('happen', 'Social', 'happen', '發生'),
+                reg('live', 'Social', 'live', '居住', 'e'),
+                reg('move', 'Social', 'move', '移動', 'e'),
+                reg('pick', 'Social', 'pick', '摘/撿'),
+                reg('plant', 'Social', 'plant', '種植'),
+                reg('prepare', 'Social', 'prepare', '準備', 'e'),
+                reg('pull', 'Social', 'pull', '拉'),
+                { id: 'push', cat: 'Social', base: 'push', s: 'pushes', ing: 'pushing', past: 'pushed', pp: 'pushed', zh: '推' },
+                reg('receive', 'Social', 'receive', '收到', 'e'),
+                reg('save', 'Social', 'save', '儲蓄/救', 'e'),
+                reg('shout', 'Social', 'shout', '大叫'),
+                reg('stay', 'Social', 'stay', '停留'),
+                { id: 'touch', cat: 'Social', base: 'touch', s: 'touches', ing: 'touching', past: 'touched', pp: 'touched', zh: '觸摸' },
+                reg('travel', 'Social', 'travel', '旅行', 'double'),
+                reg('try', 'Social', 'try', '嘗試', 'y'),
+                reg('turn', 'Social', 'turn', '轉'),
+                reg('use', 'Social', 'use', '使用', 'e'),
+                reg('work', 'Social', 'work', '工作'),
+
+                // --- 🚀 Advanced ---
+                reg('rob', 'Advanced', 'rob', '搶劫', 'double'),
+                reg('recycle', 'Advanced', 'recycle', '回收', 'e'),
+                reg('achieve', 'Advanced', 'achieve', '達成', 'e'),
+                reg('create', 'Advanced', 'create', '創造', 'e'),
+                reg('discover', 'Advanced', 'discover', '發現'),
+                reg('advise', 'Advanced', 'advise', '建議', 'e'),
+                reg('afford', 'Advanced', 'afford', '負擔得起'),
+                reg('allow', 'Advanced', 'allow', '允許'),
+                reg('appear', 'Advanced', 'appear', '出現'),
+                reg('argue', 'Advanced', 'argue', '爭論', 'e'),
+                reg('arrest', 'Advanced', 'arrest', '逮捕'),
+                reg('attack', 'Advanced', 'attack', '攻擊'),
+                reg('attend', 'Advanced', 'attend', '出席'),
+                reg('avoid', 'Advanced', 'avoid', '避免'),
+                reg('blame', 'Advanced', 'blame', '怪責', 'e'),
+                reg('bother', 'Advanced', 'bother', '打擾'),
+                reg('complain', 'Advanced', 'complain', '投訴'),
+                reg('complete', 'Advanced', 'complete', '完成', 'e'),
+                reg('connect', 'Advanced', 'connect', '連接'),
+                reg('damage', 'Advanced', 'damage', '損壞', 'e'),
+                reg('describe', 'Advanced', 'describe', '描述', 'e'),
+                reg('destroy', 'Advanced', 'destroy', '摧毀'),
+                reg('disappear', 'Advanced', 'disappear', '消失'),
+                reg('disturb', 'Advanced', 'disturb', '打擾'),
+                reg('encourage', 'Advanced', 'encourage', '鼓勵', 'e'),
+                reg('escape', 'Advanced', 'escape', '逃脫', 'e'),
+                reg('examine', 'Advanced', 'examine', '檢查', 'e'),
+                reg('explore', 'Advanced', 'explore', '探索', 'e'),
+                reg('fail', 'Advanced', 'fail', '失敗'),
+                reg('force', 'Advanced', 'force', '強迫', 'e'),
+                reg('gather', 'Advanced', 'gather', '聚集'),
+                reg('guide', 'Advanced', 'guide', '指引', 'e'),
+                reg('handle', 'Advanced', 'handle', '處理', 'e'),
+                reg('ignore', 'Advanced', 'ignore', '忽視', 'e'),
+                reg('improve', 'Advanced', 'improve', '改善', 'e'),
+                reg('include', 'Advanced', 'include', '包括', 'e'),
+                reg('increase', 'Advanced', 'increase', '增加', 'e'),
+                reg('injure', 'Advanced', 'injure', '受傷', 'e'),
+                reg('interrupt', 'Advanced', 'interrupt', '打斷'),
+                reg('introduce', 'Advanced', 'introduce', '介紹', 'e'),
+                reg('invent', 'Advanced', 'invent', '發明'),
+                reg('judge', 'Advanced', 'judge', '評判', 'e'),
+                reg('manage', 'Advanced', 'manage', '管理', 'e'),
+                reg('measure', 'Advanced', 'measure', '量度', 'e'),
+                reg('mention', 'Advanced', 'mention', '提及'),
+                reg('notice', 'Advanced', 'notice', '注意到', 'e'),
+                reg('obey', 'Advanced', 'obey', '服從'),
+                reg('offer', 'Advanced', 'offer', '提供'),
+                reg('perform', 'Advanced', 'perform', '表演'),
+                reg('pollute', 'Advanced', 'pollute', '污染', 'e'),
+                reg('prevent', 'Advanced', 'prevent', '防止'),
+                reg('produce', 'Advanced', 'produce', '生產', 'e'),
+                reg('promise', 'Advanced', 'promise', '承諾', 'e'),
+                reg('protect', 'Advanced', 'protect', '保護'),
+                reg('provide', 'Advanced', 'provide', '提供', 'e'),
+                { id: 'punish', cat: 'Advanced', base: 'punish', s: 'punishes', ing: 'punishing', past: 'punished', pp: 'punished', zh: '懲罰' },
+                reg('refuse', 'Advanced', 'refuse', '拒絕', 'e'),
+                reg('remind', 'Advanced', 'remind', '提醒'),
+                reg('repair', 'Advanced', 'repair', '修理'),
+                reg('repeat', 'Advanced', 'repeat', '重複'),
+                reg('replace', 'Advanced', 'replace', '取代', 'e'),
+                reg('reply', 'Advanced', 'reply', '回覆', 'y'),
+                reg('report', 'Advanced', 'report', '報告'),
+                reg('rescue', 'Advanced', 'rescue', '拯救', 'e'),
+                reg('respect', 'Advanced', 'respect', '尊重'),
+                { id: 'search', cat: 'Advanced', base: 'search', s: 'searches', ing: 'searching', past: 'searched', pp: 'searched', zh: '搜尋' },
+                reg('solve', 'Advanced', 'solve', '解決', 'e'),
+                reg('suggest', 'Advanced', 'suggest', '建議'),
+                reg('support', 'Advanced', 'support', '支持'),
+                reg('survive', 'Advanced', 'survive', '存活', 'e'),
+                reg('trust', 'Advanced', 'trust', '信任'),
+                reg('warn', 'Advanced', 'warn', '警告'),
+                reg('waste', 'Advanced', 'waste', '浪費', 'e'),
+                reg('whisper', 'Advanced', 'whisper', '低語'),
+            ], []);
+
+            const categories = ['All', 'Action', 'Cooking', 'School', 'Mental', 'Irregular', 'Social', 'Advanced'];
+
+            useEffect(() => {
+                const loadVoices = () => {
+                    const allVoices = window.speechSynthesis.getVoices();
+                    const usVoice = allVoices.find(v => v.name === 'Google US English') || 
+                                    allVoices.find(v => v.lang === 'en-US' && v.name.includes('Samantha')) ||
+                                    allVoices.find(v => v.lang === 'en-US');
+                    setSelectedVoice(usVoice);
+                };
+                loadVoices();
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+            }, []);
+
+            const speak = (text) => {
+                if (!text) return;
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                if (selectedVoice) utterance.voice = selectedVoice;
+                utterance.lang = 'en-US';
+                utterance.rate = 0.8;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+                window.speechSynthesis.speak(utterance);
+            };
+
+            const filteredVerbs = useMemo(() => {
+                return verbsData.filter(v => {
+                    const matchesCategory = category === 'All' || v.cat === category;
+                    const matchesSearch = v.base.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                          v.zh.includes(searchTerm);
+                    return matchesCategory && matchesSearch;
+                });
+            }, [category, searchTerm, verbsData]);
+            
+            const currentVerb = filteredVerbs[currentVerbIndex] || filteredVerbs[0] || verbsData[0];
+
+            useEffect(() => {
+                setCurrentVerbIndex(0);
+                resetSpelling();
+                setActiveTense('past');
+            }, [category, searchTerm]);
+
+            useEffect(() => {
+                resetSpelling();
+                setActiveTense('past');
+            }, [currentVerbIndex, mode]);
+
+            const nextVerb = () => {
+                if (filteredVerbs.length > 0) {
+                    setCurrentVerbIndex(prev => (prev + 1) % filteredVerbs.length);
+                }
+            };
+
+            const prevVerb = () => {
+                if (filteredVerbs.length > 0) {
+                    setCurrentVerbIndex(prev => (prev - 1 + filteredVerbs.length) % filteredVerbs.length);
+                }
+            };
+
+            const resetSpelling = () => {
+                setUserSpelling('');
+                setSpellingFeedback(null);
+                setHintLevel(0);
+            };
+
+            const checkSpelling = () => {
+                if (userSpelling.toLowerCase().trim() === currentVerb.base.toLowerCase()) {
+                    setSpellingFeedback('correct');
+                    speak(`Correct! ${currentVerb.base}`);
+                } else {
+                    setSpellingFeedback('incorrect');
+                    speak("Try again.");
+                }
+            };
+
+            const getExampleSentence = (verb, tense) => {
+                if (!verb) return "";
+                switch(tense) {
+                    case 'base': return `I can ${verb.base} very well.`;
+                    case 's': return `He ${verb.s} every single day.`;
+                    case 'ing': return `Look! She is ${verb.ing} right now.`;
+                    case 'past': return `Yesterday, we ${verb.past} together.`;
+                    case 'pp': return `I have ${verb.pp} many times.`;
+                    default: return `Yesterday, I ${verb.past}.`;
+                }
+            };
+
+            const getActiveWord = (verb, tense) => {
+                if (!verb) return "";
+                switch(tense) {
+                    case 'base': return verb.base;
+                    case 's': return verb.s;
+                    case 'ing': return verb.ing;
+                    case 'past': return verb.past;
+                    case 'pp': return verb.pp;
+                    default: return verb.past;
+                }
+            };
+
+            return (
+                <div className="min-h-screen text-slate-700 font-sans selection:bg-amber-100">
+                    <nav className="bg-white border-b-2 border-slate-100 sticky top-0 z-20 shadow-sm">
+                        <div className="max-w-3xl mx-auto px-4 py-3 space-y-3">
+                            <div className="flex flex-wrap justify-between items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center border-2 border-amber-300 shadow-sm relative overflow-hidden group">
+                                        <GraduationCap size={22} className="text-amber-600 relative z-10" />
+                                        <div className="absolute inset-0 bg-amber-200 opacity-0 group-hover:opacity-30 transition-opacity"></div>
+                                    </div>
+                                    <span className="font-extrabold text-xl tracking-tight text-slate-800 hidden sm:block">Verb Master</span>
+                                </div>
+
+                                <div className="flex-1 max-w-sm relative group flex items-center gap-2">
+                                    <div className="flex items-center justify-center w-8 h-8 bg-amber-50 rounded-full text-amber-500 border border-amber-100">
+                                        <SearchIcon size={16} />
+                                    </div>
+                                    <div className="relative w-full">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full pl-3 pr-4 py-2 rounded-full border-2 border-slate-200 focus:outline-none focus:border-amber-400 text-sm bg-white transition-all font-medium"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex bg-slate-100 rounded-lg p-1">
+                                    <button 
+                                        onClick={() => setMode('learn')}
+                                        className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === 'learn' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        <BookOpen size={16} className="mr-2" /> Learn
+                                    </button>
+                                    <button 
+                                        onClick={() => setMode('spell')}
+                                        className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === 'spell' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        <Edit3 size={16} className="mr-2" /> Spell
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto no-scrollbar pt-1 pb-2">
+                                <div className="flex space-x-2">
+                                    {categories.map(cat => (
+                                        <button
+                                            key={cat}
+                                            onClick={() => setCategory(cat)}
+                                            className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap border transition-all
+                                                ${category === cat 
+                                                ? 'bg-slate-800 text-white border-slate-800 shadow-md transform scale-105' 
+                                                : 'bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600'
+                                                }`}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+
+                    <main className="max-w-2xl mx-auto p-4 md:p-6">
+                        <div className="bg-white rounded-3xl shadow-xl border-4 border-slate-800 overflow-hidden relative flex flex-col min-h-[500px]">
+                            <div className="bg-slate-50 px-6 py-4 flex justify-between items-center border-b border-slate-100">
+                                <span className="text-xs font-bold text-amber-500 uppercase tracking-widest flex items-center">
+                                    {currentVerb.cat} 
+                                    <span className="mx-2 text-slate-300">|</span> 
+                                    {filteredVerbs.length > 0 ? currentVerbIndex + 1 : 0}/{filteredVerbs.length}
+                                </span>
+                                <div className="flex gap-2">
+                                    <button onClick={prevVerb} className="p-2 rounded-lg hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors disabled:opacity-50" disabled={filteredVerbs.length === 0}><ChevronLeft size={20}/></button>
+                                    <button onClick={nextVerb} className="p-2 rounded-lg hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors disabled:opacity-50" disabled={filteredVerbs.length === 0}><ChevronRight size={20}/></button>
+                                </div>
+                            </div>
+
+                            {filteredVerbs.length === 0 ? (
+                                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 min-h-[300px]">
+                                    <SearchIcon size={48} className="mb-4 opacity-20" />
+                                    <p>No verbs found matching "{searchTerm}"</p>
+                                    <button onClick={() => setSearchTerm('')} className="mt-4 text-amber-500 font-bold hover:underline">Clear Search</button>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col p-6 md:p-8">
+                                    <div className="text-center mb-8 relative">
+                                        <h2 className="text-5xl md:text-6xl font-black text-slate-800 mb-3 tracking-wider break-words">
+                                            {mode === 'spell' ? '???' : currentVerb.base}
+                                        </h2>
+                                        <div className="inline-flex items-center justify-center gap-3">
+                                            <span className="text-lg font-medium text-slate-500 bg-slate-50 px-4 py-1 rounded-full border border-slate-200">
+                                                {currentVerb.zh}
+                                            </span>
+                                            <button 
+                                                onClick={() => speak(currentVerb.base)}
+                                                className="p-2 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-full border-2 border-slate-900 shadow-sm transition-transform hover:scale-110"
+                                                title="Play Pronunciation"
+                                            >
+                                                <Volume2 size={20} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {mode === 'learn' ? (
+                                        <div className="animate-fadeIn space-y-6">
+                                            <div>
+                                                <h3 className="text-sm uppercase font-bold text-slate-400 mb-3 tracking-widest text-center flex items-center justify-center gap-2">
+                                                    <MousePointerClick size={14} /> Click a form for example
+                                                </h3>
+                                                <div className="space-y-2">
+                                                    <TenseRow label="Base Form" val={currentVerb.base} active={activeTense === 'base'} color="bg-blue-50 text-blue-700 border-blue-200" activeColor="bg-blue-600 text-white border-blue-600 shadow-md transform scale-[1.02]" onClick={() => setActiveTense('base')} audio={currentVerb.base} play={speak}/>
+                                                    <TenseRow label="3rd Person (Present)" val={currentVerb.s} active={activeTense === 's'} color="bg-green-50 text-green-700 border-green-200" activeColor="bg-green-600 text-white border-green-600 shadow-md transform scale-[1.02]" onClick={() => setActiveTense('s')} audio={currentVerb.s} play={speak}/>
+                                                    <TenseRow label="Present Continuous" val={currentVerb.ing} active={activeTense === 'ing'} color="bg-purple-50 text-purple-700 border-purple-200" activeColor="bg-purple-600 text-white border-purple-600 shadow-md transform scale-[1.02]" onClick={() => setActiveTense('ing')} audio={currentVerb.ing} play={speak}/>
+                                                    <TenseRow label="Simple Past" val={currentVerb.past} active={activeTense === 'past'} color="bg-orange-50 text-orange-700 border-orange-200" activeColor="bg-orange-600 text-white border-orange-600 shadow-md transform scale-[1.02]" onClick={() => setActiveTense('past')} audio={currentVerb.past} play={speak}/>
+                                                    <TenseRow label="Past Participle" val={currentVerb.pp} active={activeTense === 'pp'} color="bg-pink-50 text-pink-700 border-pink-200" activeColor="bg-pink-600 text-white border-pink-600 shadow-md transform scale-[1.02]" onClick={() => setActiveTense('pp')} audio={currentVerb.pp} play={speak}/>
+                                                </div>
+                                            </div>
+
+                                            <div className="p-5 bg-slate-50 rounded-xl border border-slate-100 text-center transition-all min-h-[100px] flex flex-col justify-center">
+                                                <p className="text-xs text-slate-400 uppercase font-bold mb-2 tracking-wider">
+                                                    Example ({activeTense === 'base' ? 'Base Form' : activeTense === 's' ? '3rd Person' : activeTense === 'ing' ? 'Continuous' : activeTense === 'past' ? 'Past' : 'Past Participle'})
+                                                </p>
+                                                <p className="text-slate-700 italic text-lg leading-relaxed animate-fadeIn">
+                                                    "{getExampleSentence(currentVerb, activeTense).split(getActiveWord(currentVerb, activeTense)).map((part, i, arr) => (
+                                                        <React.Fragment key={i}>
+                                                            {part}
+                                                            {i < arr.length - 1 && <strong className="text-amber-600 border-b-2 border-amber-300 mx-1">{getActiveWord(currentVerb, activeTense)}</strong>}
+                                                        </React.Fragment>
+                                                    ))}"
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex-1 flex flex-col justify-center animate-fadeIn">
+                                            <div className="text-center mb-8">
+                                                <p className="text-slate-500 mb-6 text-lg">Type the <strong>Base Form</strong></p>
+                                                
+                                                <div className="relative max-w-xs mx-auto">
+                                                    <input 
+                                                        type="text" 
+                                                        value={userSpelling}
+                                                        onChange={(e) => { setUserSpelling(e.target.value); setSpellingFeedback(null); }}
+                                                        onKeyDown={(e) => e.key === 'Enter' && checkSpelling()}
+                                                        className={`w-full text-center text-3xl font-bold p-4 rounded-xl border-4 outline-none transition-all shadow-inner
+                                                            ${spellingFeedback === 'correct' ? 'border-green-400 bg-green-50 text-green-800' : 
+                                                            spellingFeedback === 'incorrect' ? 'border-red-400 bg-red-50 text-red-800' : 'border-slate-200 focus:border-amber-400 focus:bg-amber-50'}`}
+                                                        placeholder="..."
+                                                        autoFocus
+                                                        autoComplete="off"
+                                                        autoCorrect="off"
+                                                    />
+                                                    {spellingFeedback === 'correct' && <span className="absolute right-4 top-5 text-green-500 animate-bounce"><Check size={28}/></span>}
+                                                    {spellingFeedback === 'incorrect' && <span className="absolute right-4 top-5 text-red-500 animate-pulse"><X size={28}/></span>}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-center gap-3">
+                                                <button onClick={checkSpelling} className="px-8 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 shadow-[0px_4px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-1 active:shadow-none transition-all w-32">
+                                                    Check
+                                                </button>
+                                                <button onClick={() => { setHintLevel(prev => prev + 1); speak(currentVerb.base[0]); }} className="px-4 py-3 bg-white text-slate-500 border-2 border-slate-200 rounded-xl font-bold hover:bg-slate-50 hover:border-amber-300 transition-colors">
+                                                    Hint?
+                                                </button>
+                                            </div>
+                                            
+                                            {hintLevel > 0 && (
+                                                <div className="text-center mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                                    <p className="text-sm text-slate-400 mb-1">Hint</p>
+                                                    <p className="text-amber-500 font-mono tracking-[0.5em] text-2xl font-bold uppercase">
+                                                        {currentVerb.base.substring(0, hintLevel) + "_".repeat(Math.max(0, currentVerb.base.length - hintLevel))}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <div className="text-center mt-8 text-slate-400 text-xs uppercase tracking-widest font-semibold">
+                            HK Primary English Curriculum • 200+ Verbs Database
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const TenseRow = ({ label, val, color, activeColor, active, onClick, play, audio }) => (
+            <div 
+                onClick={(e) => { 
+                    onClick(); 
+                    play(audio); 
+                }}
+                className={`flex justify-between items-center px-4 py-3 rounded-xl border cursor-pointer hover:opacity-90 transition-all active:scale-[0.99]
+                    ${active ? activeColor : color + ' hover:brightness-95'}
+                `}
+            >
+                <div className="flex flex-col text-left">
+                    <span className={`text-[10px] uppercase font-bold tracking-wider ${active ? 'opacity-90' : 'opacity-60'}`}>{label}</span>
+                    <span className="text-lg font-bold font-mono">{val}</span>
+                </div>
+                <button 
+                    className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${active ? 'bg-white/30 text-white hover:bg-white/40' : 'bg-white/50 text-slate-600 hover:bg-white/70'}`}
+                    onClick={(e) => {
+                        e.stopPropagation(); 
+                        onClick(); 
+                        play(audio); 
+                    }}
+                >
+                    <Volume2 size={16} />
+                </button>
+            </div>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PrimaryVerbsApp />);
+    </script>
+</body>
+</html>
