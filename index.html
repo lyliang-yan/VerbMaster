@@ -80,6 +80,10 @@
 
             const verbsData = useMemo(() => [
                 // --- 🏃 Action (Daily Life) ---
+                irr('get', 'Action', 'get', '得到/變得', 'gets', 'getting', 'got', 'got'), // NEW
+                reg('look', 'Action', 'look', '看'), // NEW
+                reg('carry', 'Action', 'carry', '攜帶', 'y'), // NEW
+                reg('smile', 'Action', 'smile', '微笑', 'e'), // NEW
                 irr('run', 'Action', 'run', '跑', 'runs', 'running', 'ran', 'run'),
                 irr('jump', 'Action', 'jump', '跳', 'jumps', 'jumping', 'jumped', 'jumped'),
                 irr('swim', 'Action', 'swim', '游泳', 'swims', 'swimming', 'swam', 'swum'),
@@ -133,9 +137,11 @@
                 reg('taste', 'Cooking', 'taste', '嚐', 'e'),
 
                 // --- 🏫 School & Learning ---
+                reg('colour', 'School', 'colour', '填色'), // NEW
                 irr('write', 'School', 'write', '寫', 'writes', 'writing', 'wrote', 'written'),
                 irr('read', 'School', 'read', '閱讀', 'reads', 'reading', 'read', 'read'),
                 irr('draw', 'School', 'draw', '畫', 'draws', 'drawing', 'drew', 'drawn'),
+                reg('design', 'School', 'design', '設計'),
                 reg('study', 'School', 'study', '研讀', 'y'),
                 reg('learn', 'School', 'learn', '學習'),
                 reg('listen', 'School', 'listen', '聽'),
@@ -244,6 +250,7 @@
                 irr('win', 'Irregular', 'win', '贏', 'wins', 'winning', 'won', 'won'),
 
                 // --- 🌍 Social & Activity ---
+                reg('call', 'Social', 'call', '打電話/呼叫'), // NEW
                 reg('invite', 'Social', 'invite', '邀請', 'e'),
                 reg('share', 'Social', 'share', '分享', 'e'),
                 reg('decorate', 'Social', 'decorate', '裝飾', 'e'),
@@ -310,6 +317,7 @@
                 reg('examine', 'Advanced', 'examine', '檢查', 'e'),
                 reg('explore', 'Advanced', 'explore', '探索', 'e'),
                 reg('fail', 'Advanced', 'fail', '失敗'),
+                { id: 'fix', cat: 'Advanced', base: 'fix', s: 'fixes', ing: 'fixing', past: 'fixed', pp: 'fixed', zh: '修理' },
                 reg('force', 'Advanced', 'force', '強迫', 'e'),
                 reg('gather', 'Advanced', 'gather', '聚集'),
                 reg('guide', 'Advanced', 'guide', '指引', 'e'),
